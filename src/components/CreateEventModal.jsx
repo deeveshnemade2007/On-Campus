@@ -26,7 +26,7 @@ export default function CreateEventModal({ onClose, onSuccess }) {
     bannerUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
     totalSlots: 60,
     coordinatorName: 'Department Coordinator',
-    coordinatorEmail: 'coordinator@college.edu',
+    coordinatorEmail: 'coordinator@nmiet.edu.in',
     tagsStr: 'Technology, Engineering, Workshop'
   });
 

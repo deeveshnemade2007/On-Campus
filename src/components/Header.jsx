@@ -5,14 +5,13 @@ import {
   Crown, 
   GraduationCap, 
   UserCheck, 
-  UserPlus, 
   Layers, 
   RotateCcw,
-  Sparkles,
   ChevronDown,
   ShieldCheck,
-  Calendar,
-  Ticket
+  Ticket,
+  Lock,
+  LogOut
 } from 'lucide-react';
 import RoleSelector from './RoleSelector';
 
@@ -24,7 +23,10 @@ export default function Header({ activeTab, setActiveTab }) {
     departments,
     resetDemoData,
     bookings,
-    events
+    events,
+    isAuthenticated,
+    logout,
+    collegeInfo
   } = usePortal();
 
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -70,12 +72,12 @@ export default function Header({ activeTab, setActiveTab }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#090d16]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#090d16]/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           
-          {/* Logo & Platform Name */}
+          {/* Logo & NMIET Branding */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('explore')}>
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-[2px] shadow-lg shadow-indigo-500/20">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-[2px] shadow-lg shadow-indigo-500/20 shrink-0">
               <div className="w-full h-full bg-[#0d1322] rounded-[10px] flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-cyan-400" />
               </div>
@@ -83,23 +85,25 @@ export default function Header({ activeTab, setActiveTab }) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-white font-heading">
-                  ON <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">CAMPUS</span>
+                  <span className="text-cyan-400">{collegeInfo.shortName}</span> ON <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">CAMPUS</span>
                 </h1>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/10 text-gray-300">
+                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/10 text-gray-300 border border-white/10">
                   8 Departments
                 </span>
               </div>
-              <p className="text-xs text-gray-400 font-medium">Unified College Event & Slot Portal</p>
+              <p className="text-[11px] text-gray-400 font-medium truncate max-w-xs sm:max-w-md">
+                {collegeInfo.fullName}
+              </p>
             </div>
           </div>
 
           {/* Department Selector (When applicable) */}
-          <div className="hidden md:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1.5">
+          <div className="hidden lg:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1.5">
             <Layers className="w-4 h-4 text-cyan-400 ml-2" />
             <select
               value={activeDepartmentId}
               onChange={(e) => setActiveDepartmentId(e.target.value)}
-              className="bg-transparent text-sm text-gray-200 border-none outline-none pr-4 cursor-pointer font-medium"
+              className="bg-transparent text-xs text-gray-200 border-none outline-none pr-4 cursor-pointer font-medium"
             >
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id} className="bg-[#121826] text-white">
@@ -110,22 +114,22 @@ export default function Header({ activeTab, setActiveTab }) {
           </div>
 
           {/* Actions & Role Switcher */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Student "My Bookings" button */}
             {currentRole === 'student' && (
               <button
                 onClick={() => setActiveTab('my-bookings')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
                   activeTab === 'my-bookings'
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                     : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
                 }`}
               >
                 <Ticket className="w-4 h-4 text-cyan-400" />
-                <span>My Bookings</span>
+                <span className="hidden sm:inline">My Bookings</span>
                 {myBookingsCount > 0 && (
-                  <span className="bg-cyan-500 text-slate-950 font-extrabold text-[10px] w-5 h-5 rounded-full flex items-center justify-center ml-1">
+                  <span className="bg-cyan-500 text-slate-950 font-extrabold text-[10px] w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
                     {myBookingsCount}
                   </span>
                 )}
@@ -136,34 +140,36 @@ export default function Header({ activeTab, setActiveTab }) {
             {currentRole === 'hod' && pendingHodCount > 0 && (
               <span className="hidden sm:flex items-center gap-1.5 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-xl font-medium animate-pulse">
                 <ShieldCheck className="w-4 h-4" />
-                {pendingHodCount} Event(s) Pending Verification
+                {pendingHodCount} Verification(s) Pending
               </span>
             )}
 
-            {/* Role Switcher Pill */}
+            {/* Role Switcher & Lock Indicator Pill */}
             <button
               onClick={() => setIsRoleModalOpen(true)}
-              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition hover:scale-[1.02] ${badge.bg}`}
-              title="Click to change Portal Role (Director, HOD, Coordinator, Student)"
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition hover:scale-[1.02] ${badge.bg}`}
+              title="Click to Switch Portal (Requires Password)"
             >
               <BadgeIcon className="w-4 h-4" />
               <span>{badge.title}</span>
-              <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-1" />
+              <Lock className="w-3 h-3 opacity-60 ml-0.5" />
             </button>
 
-            {/* Reset Demo Data Button */}
-            <button
-              onClick={resetDemoData}
-              title="Reset initial events & demo bookings"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 transition"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            {/* Log Out Button */}
+            {isAuthenticated && (
+              <button
+                onClick={() => { logout(); setIsRoleModalOpen(true); }}
+                title="Lock Portal Session"
+                className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Role Selector Modal */}
+      {/* Role & Password Auth Modal */}
       {isRoleModalOpen && (
         <RoleSelector onClose={() => setIsRoleModalOpen(false)} />
       )}

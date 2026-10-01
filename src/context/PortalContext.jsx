@@ -1,9 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { DEPARTMENTS, INITIAL_EVENTS, INITIAL_COORDINATORS, INITIAL_STUDENT_BOOKINGS } from '../data/mockData';
+import { DEPARTMENTS, INITIAL_EVENTS, INITIAL_COORDINATORS, INITIAL_STUDENT_BOOKINGS, COLLEGE_INFO } from '../data/mockData';
 
 const PortalContext = createContext();
 
 export const PortalProvider = ({ children }) => {
+  // Authentication status
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('oncampus_auth') === 'true';
+  });
+
   // Roles: 'director', 'hod', 'coordinator', 'student'
   const [currentRole, setCurrentRole] = useState(() => {
     return localStorage.getItem('oncampus_role') || 'student';
@@ -11,10 +16,10 @@ export const PortalProvider = ({ children }) => {
 
   // Active department selection for HOD, Coordinator, or filtering
   const [activeDepartmentId, setActiveDepartmentId] = useState(() => {
-    return localStorage.getItem('oncampus_dept') || 'cse';
+    return localStorage.getItem('oncampus_dept') || 'ce';
   });
 
-  // Data states initialized clean (or from saved localStorage if created by user)
+  // Data states initialized clean
   const [events, setEvents] = useState(() => {
     const saved = localStorage.getItem('oncampus_events_v2');
     return saved ? JSON.parse(saved) : INITIAL_EVENTS;
@@ -32,13 +37,17 @@ export const PortalProvider = ({ children }) => {
 
   // Student details
   const [studentProfile, setStudentProfile] = useState({
-    name: 'Deevesh Nemade',
-    prn: '2024CE01948',
-    email: 'deevesh.student@college.edu',
+    name: 'Student User',
+    prn: '2024NMIET01948',
+    email: 'student@nmiet.edu.in',
     departmentId: 'ce'
   });
 
-  // Save to LocalStorage whenever state changes
+  // Save to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('oncampus_auth', isAuthenticated ? 'true' : 'false');
+  }, [isAuthenticated]);
+
   useEffect(() => {
     localStorage.setItem('oncampus_role', currentRole);
   }, [currentRole]);
@@ -80,7 +89,7 @@ export const PortalProvider = ({ children }) => {
   };
 
   // 2. Approve Event (by HOD of department)
-  const approveEvent = (eventId, remark = 'Approved by HOD.') => {
+  const approveEvent = (eventId, remark = `Approved by HOD ${activeDepartment.hodName}.`) => {
     setEvents(prev => prev.map(e => {
       if (e.id === eventId) {
         return {
@@ -136,7 +145,7 @@ export const PortalProvider = ({ children }) => {
       timeSlot: selectedTimeSlot || targetEvent.timeSlots?.[0] || targetEvent.time,
       bookedAt: new Date().toISOString(),
       status: 'Confirmed',
-      qrValue: `ONCAMPUS-${bookingId}-${studentProfile.prn}-${targetEvent.id}`
+      qrValue: `NMIET-${bookingId}-${studentProfile.prn}-${targetEvent.id}`
     };
 
     // Increment event booked slots count
@@ -167,13 +176,15 @@ export const PortalProvider = ({ children }) => {
     setCoordinators(prev => prev.map(c => c.id === coordId ? { ...c, status: 'Approved' } : c));
   };
 
+  // Logout action
+  const logout = () => {
+    setIsAuthenticated(false);
+  };
+
   // Clear all data back to clean state
   const resetDemoData = () => {
-    localStorage.removeItem('oncampus_events');
     localStorage.removeItem('oncampus_events_v2');
-    localStorage.removeItem('oncampus_coordinators');
     localStorage.removeItem('oncampus_coordinators_v2');
-    localStorage.removeItem('oncampus_bookings');
     localStorage.removeItem('oncampus_bookings_v2');
     setEvents([]);
     setCoordinators([]);
@@ -182,6 +193,9 @@ export const PortalProvider = ({ children }) => {
 
   return (
     <PortalContext.Provider value={{
+      isAuthenticated,
+      setIsAuthenticated,
+      logout,
       currentRole,
       setCurrentRole,
       activeDepartmentId,
@@ -199,7 +213,8 @@ export const PortalProvider = ({ children }) => {
       bookSlot,
       cancelBooking,
       approveCoordinator,
-      resetDemoData
+      resetDemoData,
+      collegeInfo: COLLEGE_INFO
     }}>
       {children}
     </PortalContext.Provider>
