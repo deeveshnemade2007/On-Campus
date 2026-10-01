@@ -63,7 +63,7 @@ export default function HodDashboard({ onSelectEvent }) {
               {activeDepartment.name}
             </h1>
             <p className="text-xs sm:text-sm text-gray-300 mt-1">
-              HOD: <strong className="text-white">{activeDepartment.hodName}</strong> ({activeDepartment.hodEmail})
+              HOD: <strong className="text-white">{activeDepartment.hodName}</strong>
             </p>
           </div>
 
