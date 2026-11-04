@@ -4,22 +4,18 @@ import { DEPARTMENTS, INITIAL_EVENTS, INITIAL_COORDINATORS, INITIAL_STUDENT_BOOK
 const PortalContext = createContext();
 
 export const PortalProvider = ({ children }) => {
-  // Authentication status
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('oncampus_auth') === 'true';
   });
 
-  // Roles: 'director', 'hod', 'coordinator', 'student'
   const [currentRole, setCurrentRole] = useState(() => {
     return localStorage.getItem('oncampus_role') || 'student';
   });
 
-  // Active department selection for HOD, Coordinator, or filtering
   const [activeDepartmentId, setActiveDepartmentId] = useState(() => {
     return localStorage.getItem('oncampus_dept') || 'ce';
   });
 
-  // Data states initialized clean
   const [events, setEvents] = useState(() => {
     const saved = localStorage.getItem('oncampus_events_v2');
     return saved ? JSON.parse(saved) : INITIAL_EVENTS;
@@ -35,7 +31,6 @@ export const PortalProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_STUDENT_BOOKINGS;
   });
 
-  // Student details
   const [studentProfile, setStudentProfile] = useState({
     name: 'Student User',
     prn: '2024NMIET01948',
@@ -43,39 +38,20 @@ export const PortalProvider = ({ children }) => {
     departmentId: 'ce'
   });
 
-  // Save to LocalStorage
-  useEffect(() => {
-    localStorage.setItem('oncampus_auth', isAuthenticated ? 'true' : 'false');
-  }, [isAuthenticated]);
+  useEffect(() => { localStorage.setItem('oncampus_auth', isAuthenticated ? 'true' : 'false'); }, [isAuthenticated]);
+  useEffect(() => { localStorage.setItem('oncampus_role', currentRole); }, [currentRole]);
+  useEffect(() => { localStorage.setItem('oncampus_dept', activeDepartmentId); }, [activeDepartmentId]);
+  useEffect(() => { localStorage.setItem('oncampus_events_v2', JSON.stringify(events)); }, [events]);
+  useEffect(() => { localStorage.setItem('oncampus_coordinators_v2', JSON.stringify(coordinators)); }, [coordinators]);
+  useEffect(() => { localStorage.setItem('oncampus_bookings_v2', JSON.stringify(bookings)); }, [bookings]);
 
-  useEffect(() => {
-    localStorage.setItem('oncampus_role', currentRole);
-  }, [currentRole]);
-
-  useEffect(() => {
-    localStorage.setItem('oncampus_dept', activeDepartmentId);
-  }, [activeDepartmentId]);
-
-  useEffect(() => {
-    localStorage.setItem('oncampus_events_v2', JSON.stringify(events));
-  }, [events]);
-
-  useEffect(() => {
-    localStorage.setItem('oncampus_coordinators_v2', JSON.stringify(coordinators));
-  }, [coordinators]);
-
-  useEffect(() => {
-    localStorage.setItem('oncampus_bookings_v2', JSON.stringify(bookings));
-  }, [bookings]);
-
-  // Helper functions
   const activeDepartment = DEPARTMENTS.find(d => d.id === activeDepartmentId) || DEPARTMENTS[0];
 
-  // 1. Add Event (by Coordinator)
+  // 1. Add Event (Coordinator)
   const addEvent = (newEventData) => {
     const dept = DEPARTMENTS.find(d => d.id === newEventData.departmentId);
     const event = {
-      id: 'evt-' + Date.now().toString().slice(-4),
+      id: 'evt-' + Date.now().toString().slice(-6),
       ...newEventData,
       departmentName: dept ? dept.name : 'Engineering',
       bookedSlots: 0,
@@ -88,37 +64,57 @@ export const PortalProvider = ({ children }) => {
     return event;
   };
 
-  // 2. Approve Event (by HOD of department)
+  // 2. Edit/Update Event (Coordinator) — re-submits for HOD approval if was published/rejected
+  const updateEvent = (eventId, updatedData) => {
+    setEvents(prev => prev.map(e => {
+      if (e.id !== eventId) return e;
+      const tags = typeof updatedData.tagsStr === 'string'
+        ? updatedData.tagsStr.split(',').map(t => t.trim()).filter(Boolean)
+        : (updatedData.tags || e.tags);
+      const wasPublishedOrRejected = e.status === 'published' || e.status === 'rejected';
+      return {
+        ...e,
+        ...updatedData,
+        tags,
+        timeSlots: updatedData.time ? [updatedData.time] : e.timeSlots,
+        totalSlots: parseInt(updatedData.totalSlots, 10) || e.totalSlots,
+        status: wasPublishedOrRejected ? 'pending_verification' : e.status,
+        hodRemark: wasPublishedOrRejected ? '' : e.hodRemark,
+        verifiedAt: wasPublishedOrRejected ? null : e.verifiedAt,
+        submittedAt: wasPublishedOrRejected ? new Date().toISOString() : e.submittedAt,
+      };
+    }));
+  };
+
+  // 3. Delete Event (Coordinator) — also cancels all associated bookings
+  const deleteEvent = (eventId) => {
+    setBookings(prev => prev.map(b =>
+      b.eventId === eventId ? { ...b, status: 'Cancelled' } : b
+    ));
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+  };
+
+  // 4. Approve Event (HOD)
   const approveEvent = (eventId, remark = `Approved by HOD ${activeDepartment.hodName}.`) => {
     setEvents(prev => prev.map(e => {
       if (e.id === eventId) {
-        return {
-          ...e,
-          status: 'published',
-          hodRemark: remark,
-          verifiedAt: new Date().toISOString()
-        };
+        return { ...e, status: 'published', hodRemark: remark, verifiedAt: new Date().toISOString() };
       }
       return e;
     }));
   };
 
-  // 3. Reject Event (by HOD of department)
+  // 5. Reject Event (HOD)
   const rejectEvent = (eventId, remark = 'Requires changes.') => {
     setEvents(prev => prev.map(e => {
       if (e.id === eventId) {
-        return {
-          ...e,
-          status: 'rejected',
-          hodRemark: remark,
-          verifiedAt: new Date().toISOString()
-        };
+        return { ...e, status: 'rejected', hodRemark: remark, verifiedAt: new Date().toISOString() };
       }
       return e;
     }));
   };
 
-  // 4. Book Slot (by Student)
+  // 6. Book Slot (Student)
   const bookSlot = (eventId, selectedTimeSlot) => {
     const targetEvent = events.find(e => e.id === eventId);
     if (!targetEvent) return { success: false, message: 'Event not found' };
@@ -127,7 +123,6 @@ export const PortalProvider = ({ children }) => {
       return { success: false, message: 'All slots for this event are fully booked!' };
     }
 
-    // Check if student already booked this event
     const existing = bookings.find(b => b.eventId === eventId && b.studentEmail === studentProfile.email && b.status === 'Confirmed');
     if (existing) {
       return { success: false, message: 'You have already booked a slot for this event!', booking: existing };
@@ -148,19 +143,16 @@ export const PortalProvider = ({ children }) => {
       qrValue: `NMIET-${bookingId}-${studentProfile.prn}-${targetEvent.id}`
     };
 
-    // Increment event booked slots count
     setEvents(prev => prev.map(e => e.id === eventId ? { ...e, bookedSlots: e.bookedSlots + 1 } : e));
     setBookings(prev => [newBooking, ...prev]);
-
     return { success: true, booking: newBooking };
   };
 
-  // 5. Cancel Booking (by Student)
+  // 7. Cancel Booking (Student)
   const cancelBooking = (bookingId) => {
     const targetBooking = bookings.find(b => b.id === bookingId);
     if (!targetBooking) return;
 
-    // Decrement event slot count
     setEvents(prev => prev.map(e => {
       if (e.id === targetBooking.eventId && e.bookedSlots > 0) {
         return { ...e, bookedSlots: e.bookedSlots - 1 };
@@ -171,17 +163,13 @@ export const PortalProvider = ({ children }) => {
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'Cancelled' } : b));
   };
 
-  // 6. Approve Coordinator (by HOD)
+  // 8. Approve Coordinator (HOD)
   const approveCoordinator = (coordId) => {
     setCoordinators(prev => prev.map(c => c.id === coordId ? { ...c, status: 'Approved' } : c));
   };
 
-  // Logout action
-  const logout = () => {
-    setIsAuthenticated(false);
-  };
+  const logout = () => { setIsAuthenticated(false); };
 
-  // Clear all data back to clean state
   const resetDemoData = () => {
     localStorage.removeItem('oncampus_events_v2');
     localStorage.removeItem('oncampus_coordinators_v2');
@@ -193,25 +181,16 @@ export const PortalProvider = ({ children }) => {
 
   return (
     <PortalContext.Provider value={{
-      isAuthenticated,
-      setIsAuthenticated,
-      logout,
-      currentRole,
-      setCurrentRole,
-      activeDepartmentId,
-      setActiveDepartmentId,
+      isAuthenticated, setIsAuthenticated, logout,
+      currentRole, setCurrentRole,
+      activeDepartmentId, setActiveDepartmentId,
       activeDepartment,
       departments: DEPARTMENTS,
-      events,
-      coordinators,
-      bookings,
-      studentProfile,
-      setStudentProfile,
-      addEvent,
-      approveEvent,
-      rejectEvent,
-      bookSlot,
-      cancelBooking,
+      events, coordinators, bookings,
+      studentProfile, setStudentProfile,
+      addEvent, updateEvent, deleteEvent,
+      approveEvent, rejectEvent,
+      bookSlot, cancelBooking,
       approveCoordinator,
       resetDemoData,
       collegeInfo: COLLEGE_INFO
