@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { X, Plus, Sparkles, Pencil, AlertTriangle } from 'lucide-react';
 
-export default function CreateEventModal({ onClose, onSuccess, existingEvent = null }) {
+export default function CreateEventModal({ onClose, onSuccess, existingEvent = null, byHod = false }) {
   const { addEvent, updateEvent, activeDepartmentId, departments } = usePortal();
   const isEditing = !!existingEvent;
 
@@ -28,7 +28,7 @@ export default function CreateEventModal({ onClose, onSuccess, existingEvent = n
     setIsSubmitting(true);
 
     if (isEditing) {
-      updateEvent(existingEvent.id, formData);
+      updateEvent(existingEvent.id, formData, byHod);
     } else {
       const created = addEvent({
         ...formData,
@@ -70,8 +70,8 @@ export default function CreateEventModal({ onClose, onSuccess, existingEvent = n
               : 'Fill in the event details. Once submitted, your proposal will enter the HOD Verification Queue for approval.'}
           </p>
 
-          {/* Warning for published events being edited */}
-          {isEditing && (existingEvent.status === 'published' || existingEvent.status === 'rejected') && (
+          {/* Warning for published events being edited by coordinator */}
+          {isEditing && !byHod && (existingEvent.status === 'published' || existingEvent.status === 'rejected') && (
             <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>Editing a <strong className="capitalize">{existingEvent.status}</strong> event will reset its status to <strong>Pending HOD Verification</strong>. The HOD must re-approve before it goes live again.</span>

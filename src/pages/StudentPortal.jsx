@@ -26,6 +26,8 @@ export default function StudentPortal({ activeTab, setActiveTab, onSelectEvent }
     studentProfile 
   } = usePortal();
 
+  if (!studentProfile) return null;
+
   const [selectedDept, setSelectedDept] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
